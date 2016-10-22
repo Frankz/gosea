@@ -20,7 +20,7 @@ type TokenService interface {
 }
 
 type tokenService struct {
-	UserService UserService
+	UserService userService
 }
 
 // NewTokenService creates a new UserService
