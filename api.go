@@ -23,16 +23,20 @@ type API struct {
 
 // NewAPI creates a new API
 func NewAPI(certPath, keyPath string) *API {
+	// TODO: Use generated key from README
+	encryptionKey := []byte("secret")
+
 	aclService := services.NewACLService()
 	tokenService := services.NewTokenService()
 	userService := services.NewUserService()
 	helloService := services.NewHelloService()
 
 	return &API{
-		AclService: aclService,
-		Tokens:     handlers.NewTokens(tokenService),
-		Hello:      handlers.NewHello(helloService),
-		Users:      handlers.NewUsers(userService),
+		encryptionKey: encryptionKey,
+		AclService:    aclService,
+		Tokens:        handlers.NewTokens(tokenService),
+		Hello:         handlers.NewHello(helloService),
+		Users:         handlers.NewUsers(userService),
 	}
 }
 
