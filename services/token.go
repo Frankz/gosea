@@ -20,7 +20,14 @@ type TokenService interface {
 }
 
 type tokenService struct {
-	UserService UserService
+	UserService userService
+}
+
+// CustomClaims type holds the token claims
+type CustomClaims struct {
+	Admin bool  `json:"admin"`
+	User  *User `json:"user"`
+	jwt.StandardClaims
 }
 
 // NewTokenService creates a new UserService
@@ -31,8 +38,6 @@ func NewTokenService() TokenService {
 // Get retrieves a token for a user
 // TODO: Take login credentials and verify them against what's in database
 func (s *tokenService) Get(u *User) (string, error) {
-	// Create token
-	token := jwt.New(jwt.SigningMethodHS256)
 
 	// Try to log in the user
 	user, err := s.UserService.Read(u.ID)
@@ -43,10 +48,16 @@ func (s *tokenService) Get(u *User) (string, error) {
 		return "", errors.New("Failed to retrieve user")
 	}
 
-	// Set token claims
-	token.Claims["admin"] = true
-	token.Claims["user"] = u
-	token.Claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
+	claims := CustomClaims{
+		Admin: true,
+		User:  u,
+		StandardClaims: jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+			Issuer:    "test",
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	// Sign token with key
 	tokenString, err := token.SignedString(mySigningKey)

@@ -23,16 +23,20 @@ type API struct {
 
 // NewAPI creates a new API
 func NewAPI(certPath, keyPath string) *API {
+	// TODO: Use generated key from README
+	encryptionKey := []byte("secret")
+
 	aclService := services.NewACLService()
 	tokenService := services.NewTokenService()
 	userService := services.NewUserService()
 	helloService := services.NewHelloService()
 
 	return &API{
-		AclService: aclService,
-		Tokens:     handlers.NewTokens(tokenService),
-		Hello:      handlers.NewHello(helloService),
-		Users:      handlers.NewUsers(userService),
+		encryptionKey: encryptionKey,
+		AclService:    aclService,
+		Tokens:        handlers.NewTokens(tokenService),
+		Hello:         handlers.NewHello(helloService),
+		Users:         handlers.NewUsers(userService),
 	}
 }
 
@@ -41,25 +45,25 @@ func NewAPI(certPath, keyPath string) *API {
 // Authenticate provides Authentication middleware for handlers
 func (a *API) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var token string
+		var tokenString string
 
 		// Get token from the Authorization header
 		// format: Authorization: Bearer <token>
 		tokens, ok := r.Header["Authorization"]
 		if ok && len(tokens) >= 1 {
-			token = tokens[0]
-			token = strings.TrimPrefix(token, "Bearer ")
+			tokenString = tokens[0]
+			tokenString = strings.TrimPrefix(tokenString, "Bearer ")
 		}
 
 		// If the token is empty...
-		if token == "" {
+		if tokenString == "" {
 			// If we get here, the required token is missing
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
 		// Now parse the token
-		parsedToken, err := jwt.Parse(token, func(token *jwt.Token) (interface{}, error) {
+		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			// Don't forget to validate the alg is what you expect:
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				msg := fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -67,21 +71,20 @@ func (a *API) Authenticate(next http.Handler) http.Handler {
 			}
 			return a.encryptionKey, nil
 		})
+
 		if err != nil {
-			http.Error(w, "Error parsing token", http.StatusUnauthorized)
+			fmt.Println("Invalid Token: ", err)
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
 
-		// Check token is valid
-		if parsedToken != nil && parsedToken.Valid {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			// Everything worked! Set the user in the context.
-			context.Set(r, "user", parsedToken)
+			context.Set(r, "user", claims["user"])
 			next.ServeHTTP(w, r)
-			fmt.Println("test")
+			return
 		}
-
-		// Token is invalid
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		http.Error(w, "Error parsing token", http.StatusUnauthorized)
 		return
 	})
 }
