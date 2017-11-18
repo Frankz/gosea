@@ -4,13 +4,17 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/komand/gosea"
 	"github.com/komand/gosea/services"
+	"github.com/komand/gosea/version"
 )
 
 func main() {
+	version.New().Print()
+
 	certPath := "server.pem"
 	keyPath := "server.key"
-	api := NewAPI(certPath, keyPath)
+	api := gosea.NewAPI(certPath, keyPath)
 
 	http.Handle("/hello", api.Hello)
 	http.Handle("/tokens", api.Tokens)
